@@ -1,9 +1,7 @@
-import os
-import argparse
-import csv
-import numpy
-import matplotlib
-from matplotlib import pyplot, image
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import image
 
 def draw_display(dispsize, imagefile=None):
     """Returns a matplotlib.pyplot Figure and its axes, with a size of
@@ -92,7 +90,7 @@ def gaussian(x, sx, y=None, sy=None):
 
     return M
 
-def draw_heatmap(gazepoints, dispsize, imagefile=None, alpha=0.5, savefilename=None, gaussianwh=200, gaussiansd=None):
+def draw_heatmap(gazepoints, dispsize, image, alpha=0.5, gaussianwh=200, gaussiansd=None):
     """Draws a heatmap of the provided fixations, optionally drawn over an
     image, and optionally allocating more weight to fixations with a higher
     duration.
@@ -186,44 +184,30 @@ def draw_heatmap(gazepoints, dispsize, imagefile=None, alpha=0.5, savefilename=N
 #     Parsing    #
 ##################
 
-parser = argparse.ArgumentParser(description='Parameters required for processing.')
+def main():
+    st.title("Eye Tracking Heatmap")
 
-#required args
-parser.add_argument('input-path', type=str, help='path to the csv input')
-parser.add_argument('display-width', type=int, help='an integer representing the display width')
-parser.add_argument('display-height', type=int, help='an integer representing the display height')
+    # Upload image file
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-#optional args
-parser.add_argument('-a', '--alpha', type=float, default='0.5', required=False, help='alpha for the gaze overlay')
-parser.add_argument('-o',  '--output-name', type=str, required=False, help='name for the output file')
-parser.add_argument('-b',  '--background-image', type=str, default=None, required=False, help='path to the background image')
+    if uploaded_file is not None:
+        # Read the uploaded image
+        img = image.imread(uploaded_file)
+        image_size = (img.shape[1], img.shape[0])  # Width, Height
 
-#advanced optional args
-parser.add_argument('-n', '--n-gaussian-matrix', type=int, default='200', required=False, help='width and height of gaussian matrix')
-parser.add_argument('-sd',  '--standard-deviation', type=float, default=None ,required=False, help='standard deviation of gaussian distribution')
+        # Parse user inputs
+        display_width = st.number_input("Display Width", value=1024)
+        display_height = st.number_input("Display Height", value=768)
+        alpha = st.slider("Alpha", min_value=0.0, max_value=1.0, value=0.5)
+        n_gaussian_matrix = st.number_input("Gaussian Matrix Size", value=200)
+        standard_deviation = st.number_input("Standard Deviation", value=10.0)
 
+        # Process the uploaded image and generate the heatmap
+        fig = draw_heatmap(gaze_data, (display_width, display_height), img,
+                           alpha=alpha, gaussianwh=n_gaussian_matrix, gaussiansd=standard_deviation)
 
-args = vars(parser.parse_args())
+        # Display the generated heatmap
+        st.pyplot(fig)
 
-input_path = args['input-path']
-display_width = args['display-width']
-display_height = args['display-height']
-alpha = args['alpha']
-output_name = args['output_name'] if args['output_name'] is not None else 'output'
-background_image = args['background_image']
-ngaussian = args['n_gaussian_matrix']
-sd = args['standard_deviation']
-
-with open(input_path) as f:
-	reader = csv.reader(f)
-	raw = list(reader)
-	
-	gaza_data = []
-	if len(raw[0]) is 2:
-		gaze_data = list(map(lambda q: (int(q[0]), int(q[1]), 1), raw))
-	else:
-		gaze_data =  list(map(lambda q: (int(q[0]), int(q[1]), int(q[2])), raw))
-		
-	draw_heatmap(gaze_data, (display_width, display_height), alpha=alpha, savefilename=output_name, imagefile=background_image, gaussianwh=ngaussian, gaussiansd=sd)
-
-   
+if __name__ == "__main__":
+    main()
